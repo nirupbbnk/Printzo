@@ -1,0 +1,111 @@
+package in.printzo.printzo;
+
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.widget.Toast;
+
+
+import com.firebase.ui.auth.AuthUI;
+import com.firebase.ui.auth.IdpResponse;
+import com.firebase.ui.auth.ErrorCodes;
+
+
+import com.google.firebase.auth.FirebaseAuth;
+
+
+import java.util.Arrays;
+
+public class LoginActivity extends AppCompatActivity {
+
+    private static final int RC_SIGN_IN = 123;
+    /* private PrefManager prefManager1;*/
+    private  SharedPreferences.Editor reditor;
+    boolean rfirstTime;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_login);
+
+        SharedPreferences  sharedPreferences = getSharedPreferences("ShaPreferences", Context.MODE_PRIVATE);
+        reditor=sharedPreferences.edit();
+        rfirstTime =sharedPreferences.getBoolean("rfirst", true);
+
+        /*prefManager1 = new PrefManager(this);*/
+        FirebaseAuth auth = FirebaseAuth.getInstance();
+        if (auth.getCurrentUser() != null) {
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+        } else {
+            showSignInScreen();
+        }
+    }
+    private void showSignInScreen() {
+        startActivityForResult(
+                AuthUI.getInstance()
+                        .createSignInIntentBuilder()
+                        .setAvailableProviders(
+                                Arrays.asList(
+                                        new AuthUI.IdpConfig.Builder(AuthUI.PHONE_VERIFICATION_PROVIDER).build()
+                                        /*new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build()*/))
+                        .setTheme(R.style.LoginTheme)
+                        .setLogo(R.drawable.stolx)
+                        .build(),
+                RC_SIGN_IN);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // RC_SIGN_IN is the request code you passed into startActivityForResult(...) when starting the sign in flow.
+        if (requestCode == RC_SIGN_IN) {
+            IdpResponse response = IdpResponse.fromResultIntent(data);
+
+            // Successfully signed in
+            if (resultCode == ResultCodes.OK) {
+                //startActivity(MainActivity.createIntent(this, response));
+                if (FirebaseAuth.getInstance().getCurrentUser()!=null){
+                    if(rfirstTime){
+                        reditor.putBoolean("rfirst",false);
+                        //For commit the changes, Use either editor.commit(); or  editor.apply();.
+                        reditor.commit();
+                        startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
+                        finish();
+                        /*prefManager1.setFirstTimeLaunch(false);*/
+                    }else {
+                        startActivity(new Intent(LoginActivity.this,NavigationActivity.class));
+                    }
+
+                    return;
+                }
+            } else {
+                // Sign in failed
+                if (response == null) {
+                    // User pressed back button
+                    //showSnackbar(R.string.sign_in_cancelled);
+                    Toast.makeText(getApplicationContext(),"signin cancelled",Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                if (response.getErrorCode() == ErrorCodes.NO_NETWORK) {
+                    //showSnackbar(R.string.no_internet_connection);
+                    Toast.makeText(getApplicationContext(),"NOn internet",Toast.LENGTH_LONG).show();
+                    return;
+                }
+
+                if (response.getErrorCode() == ErrorCodes.UNKNOWN_ERROR) {
+                    //showSnackbar(R.string.unknown_error);
+                    Toast.makeText(getApplicationContext(),"Login Failed plz try again...",Toast.LENGTH_LONG).show();
+                    return;
+                }
+            }
+
+            //showSnackbar(R.string.unknown_sign_in_response);
+            Toast.makeText(getApplicationContext(),"unknown sign in response",Toast.LENGTH_LONG).show();
+        }
+    }
+
+}
+}
